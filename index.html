@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sensor fusion pipeline for two-wheeler hazard detection</title>
+<meta name="description" content="Camera-radar sensing, synchronized recording, 3D annotation, and risk analysis, integrated end to end on an electric scooter.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="icon" type="image/gif" href="assets/img/logo_icon.gif">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    /* ---- COLOR TOKENS ---- */
+    --bg-scope:#0B1620;          /* hero & demos section background (deep navy) */
+    --bg-scope-2:#0F2029;        /* hero gradient highlight */
+    --scope-line: rgba(62,214,196,0.16); /* faint grid/ring lines in hero */
+    --teal:#3ED6C4;              /* primary accent — links, sweep glow, dark-section highlights */
+    --teal-dim:#1B5F57;          /* accent on light backgrounds (icons, eyebrows, hover borders) */
+    --teal-glow: rgba(62,214,196,0.32);
+    --teal-tint: rgba(31,107,98,0.08); /* light accent fill, e.g. repo icon badges */
+    --amber:#F2A93B;             /* risk-level "Medium/High" tag only */
+    --red:#E24B4A;               /* risk-level "Critical" tag only */
+    --paper:#F4F5F2;             /* main light-section background */
+    --paper-2:#E9EBE6;           /* secondary light background (facts strip, report section) */
+    --ink:#0E151B;               /* primary text on light backgrounds */
+    --ink-muted:#4A5760;         /* secondary/body text on light backgrounds */
+    --ink-faint:#8A9298;         /* tertiary/footer text */
+    --line:#DADDD7;              /* borders and dividers on light backgrounds */
+    --radius:14px;
+    /* ---- TYPE TOKENS ---- */
+    --display: 'Space Grotesk', sans-serif; /* headings, big numbers */
+    --body: 'Inter', sans-serif;            /* paragraph text, names */
+    --mono: 'JetBrains Mono', monospace;    /* labels, nav, telemetry, code */
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;font-family:var(--body);color:var(--ink);background:var(--paper);line-height:1.65;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+  img{max-width:100%;display:block}
+  a{color:inherit}
+  .wrap{max-width:1120px;margin:0 auto;padding:0 32px}
+  section{scroll-margin-top:76px}
+  .icon{flex-shrink:0}
+  @media (max-width:600px){ .wrap{padding:0 20px} }
+  .eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--teal-dim);display:flex;align-items:center;gap:9px}
+  .eyebrow:not(.eyebrow-row)::before{content:"";width:14px;height:1px;background:currentColor;opacity:.55;flex-shrink:0}
+  .eyebrow-row{display:flex;align-items:center;gap:8px}
+  .demos .eyebrow-row{color:var(--teal)}
+  code{font-family:var(--mono);font-size:0.88em;background:var(--teal-tint);color:var(--teal-dim);padding:2px 6px;border-radius:4px}
+  .demos code{background:rgba(62,214,196,.12);color:var(--teal)}
+  p a, li a{color:var(--teal-dim);text-decoration:underline;text-decoration-color:rgba(27,95,87,.35);text-underline-offset:2px}
+  p a:hover, li a:hover{text-decoration-color:currentColor}
+  h1,h2,h3{font-family:var(--display);font-weight:600;margin:0;letter-spacing:-0.01em}
+  h1{font-weight:700;letter-spacing:-0.02em}
+  .btn{display:inline-flex;align-items:center;gap:8px;font-family:var(--mono);font-size:13px;letter-spacing:.04em;padding:12px 20px;border-radius:8px;text-decoration:none;border:1px solid transparent;transition:transform .15s ease, background .15s ease}
+  .btn:hover{transform:translateY(-1px)}
+  .btn-primary{background:var(--teal);color:#04211D}
+  .btn-primary:hover{background:#5be3d2}
+  .btn-ghost{border-color:rgba(255,255,255,.25);color:#EAF4F2}
+  .btn-ghost:hover{background:rgba(255,255,255,.06)}
+  .btn-ghost-dark{border-color:var(--line);color:var(--ink)}
+  .btn-ghost-dark:hover{background:#fff}
+
+  /* ---------- NAV ---------- */
+  nav{position:sticky;top:0;z-index:50;background:rgba(11,22,32,.86);backdrop-filter:blur(10px);border-bottom:1px solid rgba(255,255,255,.08)}
+  nav .wrap{display:flex;align-items:center;justify-content:space-between;height:64px;gap:12px}
+  .brand{display:flex;align-items:center;gap:10px;font-family:var(--mono);font-size:13px;color:#EAF4F2;text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+  .brand-logo{width:26px;height:auto;flex-shrink:0}
+  nav ul{list-style:none;display:flex;gap:28px;margin:0;padding:0}
+  nav a.nav-link{font-family:var(--mono);font-size:12.5px;letter-spacing:.04em;color:#B9C6C4;text-decoration:none}
+  nav a.nav-link:hover{color:#fff}
+  .nav-links{display:flex}
+  .nav-toggle{display:none;background:none;border:1px solid rgba(255,255,255,.25);border-radius:8px;width:38px;height:38px;align-items:center;justify-content:center;cursor:pointer}
+  .nav-toggle span, .nav-toggle span::before, .nav-toggle span::after{content:"";display:block;width:16px;height:1.5px;background:#EAF4F2;position:relative;transition:.2s}
+  .nav-toggle span::before{position:absolute;top:-5px}
+  .nav-toggle span::after{position:absolute;top:5px}
+  .mobile-panel{display:flex;flex-direction:column;gap:2px}
+  .mobile-panel a{font-family:var(--mono);font-size:13px;color:#D3DEDC;text-decoration:none;padding:12px 0;border-bottom:1px solid rgba(255,255,255,.08)}
+  .mobile-panel-outer{display:none;background:var(--bg-scope);border-bottom:1px solid rgba(255,255,255,.1)}
+  .mobile-panel-outer .wrap{padding-top:8px;padding-bottom:14px}
+  @media (max-width:760px){
+    .nav-links{display:none}
+    .nav-toggle{display:flex}
+    .mobile-panel-outer.open{display:block}
+  }
+
+  /* ---------- QUICK FACTS STRIP ---------- */
+  .facts{background:var(--paper-2);border-bottom:1px solid var(--line)}
+  .facts .wrap{display:grid;grid-template-columns:repeat(4,1fr);padding:0}
+  .fact{padding:22px 28px;border-left:1px solid var(--line)}
+  .fact:first-child{border-left:none}
+  .fact .num{font-family:var(--display);font-size:clamp(16px,2.6vw,22px);font-weight:600;color:var(--ink);line-height:1.25}
+  .fact .label{font-family:var(--mono);font-size:11px;letter-spacing:.05em;color:var(--ink-muted);text-transform:uppercase;margin-top:4px}
+  @media (max-width:760px){
+    .facts .wrap{grid-template-columns:repeat(2,1fr)}
+    .fact{padding:18px 20px}
+    .fact:nth-child(3){border-left:none}
+  }
+
+  @media (max-width:420px){ .brand{font-size:11px} }
+
+  /* ---------- HERO / RADAR SCOPE ---------- */
+  .hero{position:relative;background:radial-gradient(120% 140% at 50% -10%, var(--bg-scope-2), var(--bg-scope));color:#EAF4F2;overflow:hidden;padding:96px 0 120px}
+  .scope{position:absolute;inset:0;overflow:hidden}
+  .ring{position:absolute;left:50%;top:44%;border:1px solid var(--scope-line);border-radius:50%;transform:translate(-50%,-50%)}
+  .grid-lines{position:absolute;inset:0;background-image:linear-gradient(var(--scope-line) 1px, transparent 1px), linear-gradient(90deg, var(--scope-line) 1px, transparent 1px);background-size:64px 64px;opacity:.22;-webkit-mask-image:radial-gradient(55% 55% at 50% 44%, #000 35%, transparent 75%);mask-image:radial-gradient(55% 55% at 50% 44%, #000 35%, transparent 75%)}
+  .sweep{position:absolute;left:50%;top:44%;width:640px;height:640px;transform:translate(-50%,-50%);border-radius:50%;background:conic-gradient(from 0deg, transparent 0deg, var(--teal-glow) 14deg, transparent 38deg);animation:spin 6.5s linear infinite}
+  @keyframes spin{to{transform:translate(-50%,-50%) rotate(360deg)}}
+  .blip{position:absolute;width:7px;height:7px;border-radius:50%;background:var(--teal);box-shadow:0 0 10px 2px var(--teal-glow);animation:pulse 2.6s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:.35}50%{opacity:1}}
+  @media (prefers-reduced-motion: reduce){ .sweep{animation:none} .blip{animation:none} }
+
+  .hero-inner{position:relative;z-index:2;text-align:center}
+  .hero h1{font-size:clamp(32px,5vw,54px);line-height:1.08;max-width:820px;margin:22px auto 0}
+  .hero .lede{font-family:var(--body);font-size:17px;color:#AEC4C0;max-width:560px;margin:20px auto 0}
+  .hero-ctas{display:flex;gap:14px;justify-content:center;margin-top:34px;flex-wrap:wrap}
+  .telemetry{font-family:var(--mono);font-size:12px;color:#8FA3B0;letter-spacing:.06em;margin-top:56px;display:flex;justify-content:center;gap:26px;flex-wrap:wrap;padding:0 8px}
+  .telemetry span b{color:var(--teal);font-weight:500}
+  @media (max-width:640px){
+    .hero{padding:64px 0 72px}
+    .hero h1{font-size:28px}
+    .hero .lede{font-size:15.5px}
+    .ring{display:none}
+    .sweep{width:420px;height:420px}
+    .telemetry{gap:16px;margin-top:40px;font-size:11px}
+    .hero-ctas{flex-direction:column;align-items:stretch}
+    .hero-ctas .btn{justify-content:center}
+  }
+
+  /* ---------- SECTION SHELL ---------- */
+  section{padding:96px 0}
+  .section-head{max-width:640px;margin-bottom:56px}
+  .section-head h2{font-size:clamp(24px,3.4vw,34px);margin-top:12px}
+  .section-head p{color:var(--ink-muted);margin-top:14px;font-size:15.5px}
+
+  /* ---------- ABOUT ---------- */
+  .about-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:56px;align-items:center}
+  .about-grid p{color:var(--ink-muted);font-size:15.5px}
+  .about-grid img{border-radius:var(--radius);border:1px solid var(--line)}
+  @media (max-width:820px){ .about-grid{grid-template-columns:1fr} }
+
+  /* ---------- PIPELINE TIMELINE ---------- */
+  .timeline{position:relative}
+  .timeline::before{content:"";position:absolute;left:36px;top:8px;bottom:8px;width:1px;background:var(--line)}
+  .stage{position:relative;display:grid;grid-template-columns:280px 1fr;gap:36px;padding:0 0 64px 0;margin-left:0}
+  .stage:last-child{padding-bottom:0}
+  .stage-num{position:absolute;left:0;top:0;width:72px;height:72px;border-radius:50%;background:var(--paper);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:15px;color:var(--teal-dim)}
+  .stage-body{grid-column:1 / -1;display:grid;grid-template-columns:280px 1fr;gap:36px;padding-left:96px}
+  .stage-img{border-radius:var(--radius);border:1px solid var(--line);overflow:hidden;background:#fff}
+  .stage-img img{width:100%;height:190px;object-fit:cover}
+  @media (max-width:760px){ .stage-img img{height:auto;aspect-ratio:16/10} }
+  .stage-text .eyebrow{margin-bottom:8px}
+  .stage-text h3{font-size:21px;margin-bottom:10px}
+  .stage-text p.desc{color:var(--ink-muted);font-size:15px;margin:0 0 14px}
+  .stage-text ul{margin:0 0 14px;padding-left:18px;color:var(--ink-muted);font-size:14.5px}
+  .stage-text li{margin-bottom:5px}
+  .output-tag{display:inline-flex;align-items:center;gap:8px;font-family:var(--mono);font-size:12px;color:var(--teal-dim);background:rgba(31,107,98,.08);border:1px solid rgba(31,107,98,.2);padding:6px 12px;border-radius:8px}
+  @media (max-width:760px){
+    .timeline::before{left:26px}
+    .stage-num{width:52px;height:52px;font-size:13px}
+    .stage-body{grid-template-columns:1fr;padding-left:72px}
+  }
+
+  /* ---------- DEMOS (dark) ---------- */
+  .demos{background:var(--bg-scope);color:#EAF4F2}
+  .demos .section-head p{color:#93A6A2}
+  .demos .eyebrow{color:var(--teal)}
+  .note{font-family:var(--mono);font-size:12.5px;line-height:1.7;color:#93A6A2;border:1px dashed rgba(255,255,255,.22);border-radius:10px;padding:16px 18px;margin-bottom:44px}
+  .note b{color:#EAF4F2}
+  .demo-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:22px}
+  .demo-card{background:#0F2029;border:1px solid rgba(255,255,255,.08);border-radius:var(--radius);overflow:hidden}
+  .demo-thumb{position:relative;aspect-ratio:16/9;background:#0A151D}
+  .demo-thumb img{width:100%;height:100%;object-fit:cover;opacity:.55}
+  .play{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
+  .play span{width:52px;height:52px;border-radius:50%;background:rgba(62,214,196,.15);border:1px solid var(--teal);display:flex;align-items:center;justify-content:center}
+  .play svg{margin-left:3px}
+  .demo-info{padding:18px 20px}
+  .demo-info h3{font-size:15.5px;font-weight:500;margin-bottom:6px}
+  .demo-info p{font-family:var(--mono);font-size:12px;color:#8FA3B0;margin:0 0 10px}
+  .demo-info .watch{font-family:var(--mono);font-size:11.5px;color:var(--teal);letter-spacing:.04em}
+  @media (max-width:760px){ .demo-grid{grid-template-columns:1fr} }
+
+  /* ---------- REPOS ---------- */
+  .repo-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:18px}
+  .repo-card{border:1px solid var(--line);border-radius:var(--radius);padding:22px 24px;background:#fff;transition:border-color .15s ease}
+  .repo-card:hover{border-color:var(--teal-dim)}
+  .repo-card .repo-name{font-family:var(--mono);font-size:14px;color:var(--ink);display:flex;align-items:center;gap:12px}
+  .repo-icon{width:36px;height:36px;border-radius:9px;background:var(--teal-tint);color:var(--teal-dim);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  .repo-card p{color:var(--ink-muted);font-size:14px;margin:10px 0 14px}
+  .repo-card a.go{font-family:var(--mono);font-size:12.5px;color:var(--teal-dim);text-decoration:none}
+  .repo-card a.go:hover{text-decoration:underline}
+  @media (max-width:760px){ .repo-grid{grid-template-columns:1fr} }
+
+  /* ---------- REPORT / CITE ---------- */
+  .report{background:var(--paper-2)}
+  .report-grid{display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:start}
+  pre{background:var(--ink);color:#D7E4E0;font-family:var(--mono);font-size:12.5px;line-height:1.7;padding:20px 22px;border-radius:10px;overflow-x:auto;margin:0}
+  .team-list{list-style:none;margin:0;padding:0}
+  .team-list li{display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-bottom:1px solid var(--line)}
+  .team-list li:first-child{border-top:1px solid var(--line)}
+  .t-name{font-family:var(--body);font-size:14.5px;font-weight:500;color:var(--ink)}
+  .t-role{font-family:var(--mono);font-size:12px;color:var(--ink-faint)}
+  @media (max-width:820px){ .report-grid{grid-template-columns:1fr} }
+
+  footer{padding:40px 0;border-top:1px solid var(--line)}
+  footer .wrap{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px}
+  .footer-brand{display:flex;align-items:center;gap:10px}
+  footer p{font-family:var(--mono);font-size:12px;color:var(--ink-faint);margin:0}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <a class="brand" href="#top"><img src="assets/img/logo_icon.gif" alt="Two-Wheeler Safety logo" class="brand-logo">TWO-WHEELER HAZARD FUSION</a>
+    <ul class="nav-links">
+      <li><a class="nav-link" href="#pipeline">PIPELINE</a></li>
+      <li><a class="nav-link" href="#demos">DEMOS</a></li>
+      <li><a class="nav-link" href="#repos">REPOS</a></li>
+      <li><a class="nav-link" href="#report">REPORT</a></li>
+    </ul>
+    <button class="nav-toggle" id="navToggle" aria-label="Toggle menu" aria-expanded="false"><span></span></button>
+  </div>
+  <div class="mobile-panel-outer" id="mobilePanel">
+    <div class="wrap mobile-panel">
+      <a href="#pipeline">PIPELINE</a>
+      <a href="#demos">DEMOS</a>
+      <a href="#repos">REPOS</a>
+      <a href="#report">REPORT</a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero" id="top">
+  <div class="scope" aria-hidden="true">
+    <div class="grid-lines"></div>
+    <div class="ring" style="width:220px;height:220px"></div>
+    <div class="ring" style="width:420px;height:420px"></div>
+    <div class="ring" style="width:640px;height:640px"></div>
+    <div class="sweep"></div>
+    <div class="blip" style="left:58%;top:30%;animation-delay:.2s"></div>
+    <div class="blip" style="left:38%;top:56%;animation-delay:1.1s"></div>
+    <div class="blip" style="left:66%;top:52%;animation-delay:1.8s"></div>
+  </div>
+  <div class="wrap hero-inner">
+    <div class="eyebrow" style="color:var(--teal)">INTEGRATION REPORT · CAMERA + RADAR + EDGE COMPUTE</div>
+    <h1>Sensor fusion for real-time hazard detection on two-wheeled vehicles</h1>
+    <p class="lede">A camera and mmWave radar mounted on a scooter, fused on an embedded edge computer, turned into synchronized datasets, reviewed 3D labels, and a rider-facing risk warning — entirely onboard.</p>
+    <div class="hero-ctas">
+      <a class="btn btn-primary" href="#pipeline">Explore the pipeline</a>
+      <a class="btn btn-ghost" href="#repos">View repositories</a>
+    </div>
+    <div class="telemetry">
+      <span>RADAR <b>76–81 GHz FMCW</b></span>
+      <span>CAMERA <b>640×480 @ 30 FPS</b></span>
+      <span>COMPUTE <b>JETSON ORIN</b></span>
+      <span>RISK OUTPUT <b>4 LEVELS</b></span>
+      <span>NETWORK <b>NONE REQUIRED</b></span>
+    </div>
+  </div>
+</header>
+
+<div class="facts">
+  <div class="wrap">
+    <div class="fact"><div class="num">Camera + Radar</div><div class="label">sensor modalities fused onboard</div></div>
+    <div class="fact"><div class="num">4-stage</div><div class="label">pipeline, sensing to safety dashboard</div></div>
+    <div class="fact"><div class="num">4</div><div class="label">risk levels, low to critical</div></div>
+    <div class="fact"><div class="num">Onboard</div><div class="label">no cloud or network required</div></div>
+  </div>
+</div>
+
+<section id="about">
+  <div class="wrap about-grid">
+    <div>
+      <div class="eyebrow">ABOUT</div>
+      <h2 style="margin-top:12px">No crumple zone, no airbag, half a second to react</h2>
+      <p style="margin-top:18px">Two-wheeled vehicles put riders in traffic with almost no reaction time and no physical protection. This project mounts a forward-facing RGB camera and a mmWave radar on a scooter, processes both streams entirely onboard, and turns the fused evidence into an interpretable, rider-facing risk warning — with no dependence on external compute or network infrastructure.</p>
+      <p>The system is split into four components, each in its own repository and each detailed in the full integration report below.</p>
+    </div>
+    <img src="assets/img/hardware_photo.png" alt="Camera and radar sensing platform mounted on the scooter" loading="lazy">
+  </div>
+</section>
+
+<section id="pipeline">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="eyebrow">THE PIPELINE</div>
+      <h2>Four stages, in order</h2>
+      <p>Each stage's output is the next stage's trusted input — reliable synchronization enables auditable annotation, and auditable annotation enables risk metrics a rider can actually trust.</p>
+    </div>
+
+    <div class="timeline">
+      <div class="stage">
+        <div class="stage-num">01</div>
+        <div class="stage-body">
+          <div class="stage-img"><img src="assets/img/hardware_architecture.png" alt="Onboard hardware and data-flow architecture" loading="lazy"></div>
+          <div class="stage-text">
+            <div class="eyebrow eyebrow-row"><svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/></svg>HARDWARE SENSING PLATFORM</div>
+            <h3>Mounted, powered, and self-contained</h3>
+            <p class="desc">Camera, radar, and edge computer are rigidly mounted on the vehicle and run independently of any external network.</p>
+            <ul>
+              <li>Intel RealSense D455 RGB camera, 640×480 @ 30 fps over USB 3.0</li>
+              <li>TI AWR2243 FMCW radar, 76–81 GHz, 3 Tx / 4 Rx over Ethernet/UDP</li>
+              <li>NVIDIA Jetson Orin runs acquisition, inference, recording, and the local web server</li>
+              <li>Portable power bank, onboard SSD, and a <code>jetsonhotspot</code> Wi-Fi access point</li>
+            </ul>
+            <span class="output-tag">OUTPUT → timestamped RGB frames + raw radar recordings</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="stage">
+        <div class="stage-num">02</div>
+        <div class="stage-body">
+          <div class="stage-img"><img src="assets/img/vod_architecture.png" alt="Radar-camera recording pipeline for VoD annotation" loading="lazy"></div>
+          <div class="stage-text">
+            <div class="eyebrow eyebrow-row"><svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>SYNCHRONIZED RECORDING &amp; VoD PREP</div>
+            <h3>Radar-led pairing, calibrated samples</h3>
+            <p class="desc">Raw streams become calibrated, View-of-Delft-compatible samples ready for annotation.</p>
+            <ul>
+              <li>The radar frame anchors each saved sample; the closest camera frame is attached with a logged clock offset</li>
+              <li>Seven-field radar rows: <code>[X, Y, Z, I/P, v_r, v_rc, time_id]</code></li>
+              <li>Optional RANSAC-based ego-velocity compensation</li>
+              <li>1-, 3-, or 5-scan temporal bundles with explicit scan ages</li>
+            </ul>
+            <span class="output-tag">OUTPUT → calibrated, annotation-ready camera–radar samples</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="stage">
+        <div class="stage-num">03</div>
+        <div class="stage-body">
+          <div class="stage-img"><img src="assets/img/annotation_interface.png" alt="Radar-camera annotation tool interface" loading="lazy"></div>
+          <div class="stage-text">
+            <div class="eyebrow eyebrow-row"><svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>RADAR–CAMERA ANNOTATION TOOL</div>
+            <h3>One box, two views, human-reviewed</h3>
+            <p class="desc">Every label is a single calibrated 3D box, checked in both radar and camera space before it's trusted.</p>
+            <ul>
+              <li>One <code>Box3D</code> rendered as both a radar BEV footprint and an RGB wireframe</li>
+              <li>Manual placement plus RT-DETR/YOLO-assisted proposals</li>
+              <li>Identity-aware tracking with validation warnings and Fix actions</li>
+              <li>Export to internal JSON, KITTI/VoD <code>label_2</code>, and JSON/CSV</li>
+            </ul>
+            <span class="output-tag">OUTPUT → auditable 3D object labels with temporal identities</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="stage">
+        <div class="stage-num">04</div>
+        <div class="stage-body">
+          <div class="stage-img"><img src="assets/img/dashboard_overview.png" alt="Safety dashboard overview screenshot" loading="lazy"></div>
+          <div class="stage-text">
+            <div class="eyebrow eyebrow-row"><svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>SAFETY DASHBOARD</div>
+            <h3>Evidence you can trace, not a black box</h3>
+            <p class="desc">Fused evidence becomes interpretable metrics and a risk level the rider can act on immediately.</p>
+            <ul>
+              <li>Time-to-collision, forward distance, and brake-demand estimates</li>
+              <li>Four risk levels — Low, Medium, High, Critical — with explicit thresholds</li>
+              <li>Every object tagged as fused, radar-led, or camera-led evidence</li>
+              <li>Object table, risk timeline, and event log for full auditability</li>
+            </ul>
+            <span class="output-tag">OUTPUT → explainable, time-aware hazard warnings</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="demos" class="demos">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="eyebrow">DEMOS</div>
+      <h2>See it running</h2>
+      <p>Short clips of each stage in action, on the real hardware and interfaces.</p>
+    </div>
+
+    <div class="note">
+      <b>Setup note —</b> the thumbnails below link to placeholder video IDs. To go live: drag your <code>.mp4</code> clips into any GitHub issue or PR comment box, copy the auto-generated <code>github.com/user-attachments/assets/…</code> link GitHub gives you, and paste it into each <code>href</code> below. Remove this note once your real clips are linked.
+    </div>
+
+    <div class="demo-grid">
+      <a class="demo-card" href="https://github.com/user-attachments/assets/REPLACE-WITH-YOUR-VIDEO-ID" style="text-decoration:none;color:inherit">
+        <div class="demo-thumb">
+          <img src="assets/img/stage1_sensing_photo.png" alt="" loading="lazy">
+          <div class="play"><span><svg width="18" height="18" viewBox="0 0 24 24" fill="#3ED6C4"><path d="M8 5v14l11-7z"/></svg></span></div>
+        </div>
+        <div class="demo-info"><h3>Boot, connect, and record</h3><p>Hardware platform · 01</p><span class="watch">WATCH DEMO ↗</span></div>
+      </a>
+      <a class="demo-card" href="https://github.com/user-attachments/assets/REPLACE-WITH-YOUR-VIDEO-ID" style="text-decoration:none;color:inherit">
+        <div class="demo-thumb">
+          <img src="assets/img/stage2_sync_diagram.png" alt="" loading="lazy">
+          <div class="play"><span><svg width="18" height="18" viewBox="0 0 24 24" fill="#3ED6C4"><path d="M8 5v14l11-7z"/></svg></span></div>
+        </div>
+        <div class="demo-info"><h3>Live synchronized capture</h3><p>Recording &amp; prep · 02</p><span class="watch">WATCH DEMO ↗</span></div>
+      </a>
+      <a class="demo-card" href="https://github.com/user-attachments/assets/REPLACE-WITH-YOUR-VIDEO-ID" style="text-decoration:none;color:inherit">
+        <div class="demo-thumb">
+          <img src="assets/img/stage3_annotation_context.png" alt="" loading="lazy">
+          <div class="play"><span><svg width="18" height="18" viewBox="0 0 24 24" fill="#3ED6C4"><path d="M8 5v14l11-7z"/></svg></span></div>
+        </div>
+        <div class="demo-info"><h3>Labelling walkthrough</h3><p>Annotation tool · 03</p><span class="watch">WATCH DEMO ↗</span></div>
+      </a>
+      <a class="demo-card" href="https://github.com/user-attachments/assets/REPLACE-WITH-YOUR-VIDEO-ID" style="text-decoration:none;color:inherit">
+        <div class="demo-thumb">
+          <img src="assets/img/stage4_dashboard_loop.png" alt="" loading="lazy">
+          <div class="play"><span><svg width="18" height="18" viewBox="0 0 24 24" fill="#3ED6C4"><path d="M8 5v14l11-7z"/></svg></span></div>
+        </div>
+        <div class="demo-info"><h3>Live risk warning</h3><p>Safety dashboard · 04</p><span class="watch">WATCH DEMO ↗</span></div>
+      </a>
+    </div>
+  </div>
+</section>
+
+<section id="repos">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="eyebrow">RELATED REPOSITORIES</div>
+      <h2>Four repos, one pipeline</h2>
+      <p>Replace the links below with your actual repository URLs.</p>
+    </div>
+    <div class="repo-grid">
+      <div class="repo-card">
+        <div class="repo-name"><span class="repo-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/></svg></span>fusionapp-hardware</div>
+        <p>Onboard acquisition system: camera/radar drivers, Jetson pipeline, local web server.</p>
+        <a class="go" href="https://github.com/your-org/fusionapp-hardware">github.com/your-org/fusionapp-hardware →</a>
+      </div>
+      <div class="repo-card">
+        <div class="repo-name"><span class="repo-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg></span>vod-sync-pipeline</div>
+        <p>Radar–camera synchronization, calibration, and VoD-compatible dataset export.</p>
+        <a class="go" href="https://github.com/your-org/vod-sync-pipeline">github.com/your-org/vod-sync-pipeline →</a>
+      </div>
+      <div class="repo-card">
+        <div class="repo-name"><span class="repo-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></span>radar-camera-annotator</div>
+        <p>3D annotation tool with BEV/RGB dual view, detection assist, and tracking.</p>
+        <a class="go" href="https://github.com/your-org/radar-camera-annotator">github.com/your-org/radar-camera-annotator →</a>
+      </div>
+      <div class="repo-card">
+        <div class="repo-name"><span class="repo-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></span>safety-dashboard</div>
+        <p>Fused risk dashboard: TTC, brake demand, and rider-facing alerts.</p>
+        <a class="go" href="https://github.com/your-org/safety-dashboard">github.com/your-org/safety-dashboard →</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="report" class="report">
+  <div class="wrap report-grid">
+    <div>
+      <div class="eyebrow">FULL REPORT</div>
+      <h2 style="margin-top:12px;font-size:26px">Read the integration report</h2>
+      <p style="color:var(--ink-muted);margin-top:14px">Hardware integration, synchronization mathematics, annotation tool architecture, and dashboard risk logic — written up in full.</p>
+      <a class="btn btn-ghost-dark" style="margin-top:10px" href="./Report.pdf">Open Report.pdf ↗</a>
+    </div>
+    <div>
+      <div class="eyebrow" style="margin-bottom:10px">TEAM</div>
+      <h3 style="font-family:var(--display);font-size:19px;font-weight:600;margin:0 0 8px">Behind the project</h3>
+      <p style="color:var(--ink-muted);font-size:14px;margin:0 0 18px">Developed as part of the <a href="https://github.com/ibrahim-radwan/RoadSafetyOnTwoWheelers" style="color:var(--teal-dim);text-decoration:underline">RoadSafetyOnTwoWheelers</a> project.</p>
+      <ul class="team-list">
+        <li><span class="t-name">Ibrahim Radwan</span><span class="t-role">Project Lead</span></li>
+        <li><span class="t-name">[Team member name]</span><span class="t-role">[Role]</span></li>
+        <li><span class="t-name">[Team member name]</span><span class="t-role">[Role]</span></li>
+        <li><span class="t-name">[Team member name]</span><span class="t-role">[Role]</span></li>
+      </ul>
+      <a class="btn btn-ghost-dark" style="margin-top:16px" href="https://github.com/ibrahim-radwan/RoadSafetyOnTwoWheelers">View team &amp; contributors ↗</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap footer-inner">
+    <div class="footer-brand">
+      <img src="assets/img/logo_icon.gif" alt="Two-Wheeler Safety logo" width="20" loading="lazy">
+      <p>© 2026 University of Canberra · Vision and Sensing Lab</p>
+    </div>
+    <p>LICENSE: TBD</p>
+  </div>
+</footer>
+
+
+<script>
+  var navToggle = document.getElementById('navToggle');
+  var mobilePanel = document.getElementById('mobilePanel');
+  navToggle.addEventListener('click', function(){
+    var open = mobilePanel.classList.toggle('open');
+    navToggle.setAttribute('aria-expanded', open);
+  });
+  mobilePanel.querySelectorAll('a').forEach(function(a){
+    a.addEventListener('click', function(){
+      mobilePanel.classList.remove('open');
+      navToggle.setAttribute('aria-expanded', 'false');
+    });
+  });
+  window.addEventListener('resize', function(){
+    if(window.innerWidth > 760 && mobilePanel.classList.contains('open')){
+      mobilePanel.classList.remove('open');
+      navToggle.setAttribute('aria-expanded', 'false');
+    }
+  });
+</script>
+</body>
+</html>
