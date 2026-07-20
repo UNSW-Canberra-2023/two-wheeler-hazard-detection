@@ -180,7 +180,7 @@
   .note b{color:#EAF4F2}
   .demo-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:22px}
   .demo-card{background:#0F2029;border:1px solid rgba(255,255,255,.08);border-radius:var(--radius);overflow:hidden;display:flex;flex-direction:column}
-  .demo-thumb{position:relative;background:#0A151D;overflow:hidden;line-height:0}
+  .demo-thumb{position:relative;background:#0A151D;overflow:hidden;line-height:0;border:0;padding:0;width:100%;text-align:left;font:inherit;color:inherit}
   .demo-thumb img{width:100%;height:auto;display:block;opacity:1}
   .demo-thumb.zoomable::after{content:"Expand image"}
   .play{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;opacity:.55;transition:opacity .2s ease}
@@ -245,7 +245,7 @@
     position:fixed;inset:0;z-index:200;display:none;align-items:center;justify-content:center;
     padding:max(16px,3vw);background:rgba(6,12,18,.88);backdrop-filter:blur(10px);
   }
-  .lightbox.open{display:flex}
+  .lightbox.open{display:flex !important}
   .lightbox-dialog{
     position:relative;max-width:min(1280px,96vw);max-height:92vh;width:100%;
     display:flex;flex-direction:column;align-items:center;gap:14px;
@@ -576,26 +576,123 @@
   </div>
 </footer>
 
+<div class="lightbox" id="lightbox" hidden aria-hidden="true">
+  <span class="lightbox-counter" id="lightboxCounter"></span>
+  <button type="button" class="lightbox-close" id="lightboxClose" aria-label="Close image viewer">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+  </button>
+  <button type="button" class="lightbox-nav prev" id="lightboxPrev" aria-label="Previous image">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+  </button>
+  <button type="button" class="lightbox-nav next" id="lightboxNext" aria-label="Next image">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+  </button>
+  <div class="lightbox-dialog" role="dialog" aria-modal="true" aria-labelledby="lightboxCaption">
+    <figure class="lightbox-figure">
+      <img id="lightboxImage" src="" alt="">
+    </figure>
+    <p class="lightbox-caption" id="lightboxCaption"></p>
+  </div>
+</div>
 
 <script>
-  var navToggle = document.getElementById('navToggle');
-  var mobilePanel = document.getElementById('mobilePanel');
-  navToggle.addEventListener('click', function(){
-    var open = mobilePanel.classList.toggle('open');
-    navToggle.setAttribute('aria-expanded', open);
-  });
-  mobilePanel.querySelectorAll('a').forEach(function(a){
-    a.addEventListener('click', function(){
-      mobilePanel.classList.remove('open');
-      navToggle.setAttribute('aria-expanded', 'false');
+  (function(){
+    var navToggle = document.getElementById('navToggle');
+    var mobilePanel = document.getElementById('mobilePanel');
+    navToggle.addEventListener('click', function(){
+      var open = mobilePanel.classList.toggle('open');
+      navToggle.setAttribute('aria-expanded', open);
     });
-  });
-  window.addEventListener('resize', function(){
-    if(window.innerWidth > 760 && mobilePanel.classList.contains('open')){
-      mobilePanel.classList.remove('open');
-      navToggle.setAttribute('aria-expanded', 'false');
+    mobilePanel.querySelectorAll('a').forEach(function(a){
+      a.addEventListener('click', function(){
+        mobilePanel.classList.remove('open');
+        navToggle.setAttribute('aria-expanded', 'false');
+      });
+    });
+    window.addEventListener('resize', function(){
+      if(window.innerWidth > 760 && mobilePanel.classList.contains('open')){
+        mobilePanel.classList.remove('open');
+        navToggle.setAttribute('aria-expanded', 'false');
+      }
+    });
+
+    var lightbox = document.getElementById('lightbox');
+    var lightboxImage = document.getElementById('lightboxImage');
+    var lightboxCaption = document.getElementById('lightboxCaption');
+    var lightboxCounter = document.getElementById('lightboxCounter');
+    var items = Array.prototype.slice.call(document.querySelectorAll('[data-lightbox]'));
+    var index = 0;
+    var lastFocus = null;
+
+    function getItemData(el){
+      var img = el.tagName === 'IMG' ? el : el.querySelector('img');
+      return {
+        src: img ? (img.currentSrc || img.src) : '',
+        alt: img ? (img.getAttribute('alt') || '') : '',
+        caption: el.getAttribute('data-caption') || (img ? img.getAttribute('alt') : '') || ''
+      };
     }
-  });
+
+    function render(){
+      var data = getItemData(items[index]);
+      lightboxImage.src = data.src;
+      lightboxImage.alt = data.alt;
+      lightboxCaption.textContent = data.caption;
+      lightboxCounter.textContent = (index + 1) + ' / ' + items.length;
+    }
+
+    function openAt(i){
+      if(!items.length) return;
+      index = (i + items.length) % items.length;
+      lastFocus = document.activeElement;
+      render();
+      lightbox.hidden = false;
+      lightbox.setAttribute('aria-hidden', 'false');
+      lightbox.classList.add('open');
+      document.body.classList.add('lightbox-open');
+      document.getElementById('lightboxClose').focus();
+    }
+
+    function closeLightbox(){
+      lightbox.classList.remove('open');
+      lightbox.hidden = true;
+      lightbox.setAttribute('aria-hidden', 'true');
+      document.body.classList.remove('lightbox-open');
+      lightboxImage.removeAttribute('src');
+      if(lastFocus && lastFocus.focus) lastFocus.focus();
+    }
+
+    function step(delta){
+      index = (index + delta + items.length) % items.length;
+      render();
+    }
+
+    items.forEach(function(el, i){
+      el.addEventListener('click', function(e){
+        e.preventDefault();
+        openAt(i);
+      });
+      el.addEventListener('keydown', function(e){
+        if(e.key === 'Enter' || e.key === ' '){
+          e.preventDefault();
+          openAt(i);
+        }
+      });
+    });
+
+    document.getElementById('lightboxClose').addEventListener('click', closeLightbox);
+    document.getElementById('lightboxPrev').addEventListener('click', function(e){ e.stopPropagation(); step(-1); });
+    document.getElementById('lightboxNext').addEventListener('click', function(e){ e.stopPropagation(); step(1); });
+    lightbox.addEventListener('click', function(e){
+      if(e.target === lightbox) closeLightbox();
+    });
+    document.addEventListener('keydown', function(e){
+      if(!lightbox.classList.contains('open')) return;
+      if(e.key === 'Escape') closeLightbox();
+      if(e.key === 'ArrowLeft') step(-1);
+      if(e.key === 'ArrowRight') step(1);
+    });
+  })();
 </script>
 </body>
 </html>
