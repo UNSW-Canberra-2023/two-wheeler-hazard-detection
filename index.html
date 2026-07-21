@@ -156,7 +156,7 @@
   }
   .about-media{
     display:grid;
-    grid-template-columns:minmax(0,1.45fr) minmax(0,1fr);
+    grid-template-columns:1fr 1fr;
     gap:16px;
     align-items:stretch;
     min-width:0;
@@ -170,11 +170,11 @@
     background:#fff;
     line-height:0;
     box-shadow:0 10px 28px rgba(14,21,27,.07);
-    height:min(68vh,560px);
+    min-width:0;
+    height:min(62vh,520px);
     display:flex;
     align-items:center;
     justify-content:center;
-    min-width:0;
   }
   .about-media img{
     width:100%;
@@ -185,8 +185,7 @@
   }
   @media (max-width:760px){
     .about-media{grid-template-columns:1fr}
-    .about-media figure{height:auto;max-height:min(70vh,520px)}
-    .about-media img{height:auto;max-height:min(70vh,520px)}
+    .about-media figure{height:auto;min-height:280px;max-height:min(70vh,480px)}
   }
 
   /* ---------- PIPELINE TIMELINE ---------- */
@@ -232,14 +231,14 @@
   .demo-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:20px}
   .demo-card{background:#0F2029;border:1px solid rgba(255,255,255,.08);border-radius:var(--radius);overflow:hidden;display:flex;flex-direction:column;box-shadow:0 12px 32px rgba(0,0,0,.22)}
   .demo-thumb{
-    position:relative;background:#071018;overflow:hidden;line-height:0;border:0;padding:0;
-    width:100%;text-align:left;font:inherit;color:inherit;aspect-ratio:16 / 9;display:block;
+    position:relative;background:#0A151D;overflow:hidden;line-height:0;border:0;padding:0;
+    width:100%;text-align:left;font:inherit;color:inherit;aspect-ratio:16 / 9;display:flex;
+    align-items:center;justify-content:center;
   }
   .demo-thumb img{
-    width:100%;height:100%;object-fit:cover;object-position:center;
+    width:100%;height:100%;object-fit:contain;object-position:center;
     display:block;opacity:1;
   }
-  .demo-thumb img.scooter-thumb{object-position:center 18%}
   .demo-thumb.zoomable::after{content:"Expand"}
   .play{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;opacity:.45;transition:opacity .2s ease}
   .demo-thumb.zoomable:hover .play{opacity:.15}
@@ -426,11 +425,11 @@
       <p>The system is split into four components, each in its own repository and each detailed in the full integration report below.</p>
     </div>
     <div class="about-media">
-      <figure class="zoomable" data-lightbox data-caption="Onboard hardware and data-flow architecture" tabindex="0" role="button" aria-label="Expand hardware architecture diagram">
-        <img src="assets/img/ultra_sharp_hardware_architecture.png" alt="Onboard hardware and data-flow architecture" loading="lazy" decoding="async">
+      <figure class="zoomable" data-lightbox data-caption="Integrated camera-radar safety pipeline overview" tabindex="0" role="button" aria-label="Expand pipeline overview image">
+        <img src="assets/img/hardware_photo_1.png" alt="Integrated camera-radar safety pipeline overview" width="1392" height="1068" loading="lazy" decoding="async">
       </figure>
       <figure class="zoomable" data-lightbox data-caption="Scooter sensing platform with labeled camera, radar, battery, and Jetson Orin" tabindex="0" role="button" aria-label="Expand scooter sensing platform photo">
-        <img src="assets/img/scooter_photo.png" alt="Scooter sensing platform with labeled camera, radar, battery, and Jetson Orin" loading="lazy" decoding="async">
+        <img src="assets/img/about_scooter.png" alt="Scooter sensing platform with labeled camera, radar, battery, and Jetson Orin" width="1800" height="1400" loading="lazy" decoding="async">
       </figure>
     </div>
   </div>
@@ -448,7 +447,7 @@
       <div class="stage">
         <div class="stage-num">01</div>
         <div class="stage-body">
-          <div class="stage-img zoomable" data-lightbox data-caption="Onboard hardware and data-flow architecture" tabindex="0" role="button" aria-label="Expand hardware architecture diagram"><img src="assets/img/ultra_sharp_hardware_architecture.png" alt="Onboard hardware and data-flow architecture" loading="lazy"></div>
+          <div class="stage-img zoomable" data-lightbox data-caption="Onboard hardware and data-flow architecture" tabindex="0" role="button" aria-label="Expand hardware architecture diagram"><img src="assets/img/stage_hardware_web.png" alt="Onboard hardware and data-flow architecture" loading="lazy"></div>
           <div class="stage-text">
             <div class="eyebrow eyebrow-row"><svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/></svg>HARDWARE SENSING PLATFORM</div>
             <h3>Mounted, powered, and self-contained</h3>
@@ -539,7 +538,7 @@
     <div class="demo-grid">
       <article class="demo-card">
         <button type="button" class="demo-thumb zoomable" data-lightbox data-caption="Boot, connect, and record — hardware platform">
-          <img src="assets/img/scooter_photo.png" alt="Boot, connect, and record — hardware platform" class="scooter-thumb" loading="lazy">
+          <img src="assets/img/scooter_photo.png" alt="Boot, connect, and record — hardware platform" loading="lazy">
           <div class="play" aria-hidden="true"><span><svg width="18" height="18" viewBox="0 0 24 24" fill="#3ED6C4"><path d="M8 5v14l11-7z"/></svg></span></div>
         </button>
         <div class="demo-info"><h3>Boot, connect, and record</h3><p>Hardware platform · 01</p><a class="watch" href="https://github.com/user-attachments/assets/REPLACE-WITH-YOUR-VIDEO-ID">WATCH DEMO ↗</a></div>
