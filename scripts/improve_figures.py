@@ -430,21 +430,260 @@ def make_pipeline_overview() -> None:
     print(f"wrote {out.name} {img.size}")
 
 
+def make_hardware_architecture() -> None:
+    """Crisp replacement for the low-res photo collage diagram."""
+    W, H = 2400, 1600
+    img = Image.new("RGB", (W, H), PAPER)
+    d = ImageDraw.Draw(img)
+    title_f = fonts(44, True)
+    head_f = fonts(30, True)
+    body_f = fonts(26)
+    small_f = fonts(24)
+
+    d.text((48, 36), "Onboard Hardware & Data-Flow Architecture", font=title_f, fill=INK)
+    d.text((48, 96), "Scooter sensing platform · Jetson Orin edge compute · rider interface", font=fonts(28), fill=MUTED)
+
+    def card(xy, title, color, lines, footer=None):
+        x0, y0, x1, y1 = xy
+        rounded(d, xy, PAPER, color, 18, 3)
+        d.rounded_rectangle((x0, y0, x1, y0 + 56), radius=18, fill=color)
+        d.rectangle((x0, y0 + 28, x1, y0 + 56), fill=color)
+        d.text((x0 + 22, y0 + 12), title, font=head_f, fill=PAPER)
+        y = y0 + 78
+        for line in lines:
+            d.ellipse((x0 + 24, y + 10, x0 + 36, y + 22), fill=color)
+            y = draw_wrapped(d, (x0 + 48, y), line, body_f, MUTED, x1 - x0 - 72, 6) + 10
+        if footer:
+            rounded(d, (x0 + 18, y1 - 70, x1 - 18, y1 - 18), (245, 247, 244), LINE, 12)
+            draw_wrapped(d, (x0 + 32, y1 - 54), footer, small_f, INK, x1 - x0 - 64, 4)
+
+    # Layout grid
+    pad = 48
+    gap = 24
+    col_w = (W - 2 * pad - 2 * gap) // 3
+    row1_h = 420
+    row2_h = 380
+    y1 = 160
+    y2 = y1 + row1_h + gap
+    y3 = y2 + row2_h + gap
+
+    card(
+        (pad, y1, pad + col_w, y1 + row1_h),
+        "Sensors",
+        ORANGE,
+        [
+            "Intel RealSense D455 — RGB 640×480 @ 30 FPS over USB 3.0",
+            "TI AWR2243 mmWave radar — 76–81 GHz, 3 Tx / 4 Rx over Ethernet/UDP",
+            "Radar outputs: point cloud, range–azimuth, Doppler / velocity",
+        ],
+        "INPUT → camera frames + radar rows",
+    )
+    card(
+        (pad + col_w + gap, y1, pad + 2 * col_w + gap, y1 + row1_h),
+        "Edge Compute · Jetson Orin",
+        TEAL,
+        [
+            "Sensor acquisition and time synchronisation",
+            "Radar processing and camera inference (YOLO / RT-DETR)",
+            "Sensor fusion and risk assessment",
+            "Local SSD recording, FusionApp web server, power management",
+        ],
+        "ONBOARD · no cloud required",
+    )
+    card(
+        (pad + 2 * (col_w + gap), y1, W - pad, y1 + row1_h),
+        "Rider Interface",
+        BLUE,
+        [
+            "JetsonHotspot Wi-Fi access point (2.4 / 5 GHz)",
+            "Browser UI: live camera, radar view, start/stop recording",
+            "Handlebar risk indicator — green / yellow / red",
+        ],
+        "OUTPUT → live status + alerts",
+    )
+
+    card(
+        (pad, y2, pad + col_w, y2 + row2_h),
+        "Power",
+        ORANGE,
+        [
+            "Portable USB-C PD power bank (≈ 25,000 mAh class)",
+            "Powers Jetson Orin and radar continuously in the field",
+        ],
+        "FIELD POWER",
+    )
+    card(
+        (pad + col_w + gap, y2, pad + 2 * col_w + gap, y2 + row2_h),
+        "Local Storage",
+        BLUE,
+        [
+            "Onboard SSD for RGB frames, radar recordings, configs",
+            "Session logs and metadata kept with each capture",
+        ],
+        "PERSISTENT DATA",
+    )
+    card(
+        (pad + 2 * (col_w + gap), y2, W - pad, y2 + row2_h),
+        "Risk Indicator",
+        GREEN,
+        [
+            "Green = Safe · Yellow = Caution · Red = High risk",
+            "Immediate rider-facing cue from fused evidence",
+        ],
+        "3-LEVEL ALERT",
+    )
+
+    # Flow summary strip
+    rounded(d, (pad, y3, W - pad, H - pad), PAPER, LINE, 18, 2)
+    d.text((pad + 28, y3 + 24), "Data-flow summary", font=fonts(32, True), fill=INK)
+    steps = [
+        "1  Power bank feeds Jetson + radar",
+        "2  Camera (USB) and radar (UDP) stream to Jetson",
+        "3  Jetson fuses, records, and hosts FusionApp",
+        "4  Hotspot serves live UI to a phone or tablet",
+        "5  Risk indicator shows rider-facing status",
+        "6  Recorded pairs feed offline annotation",
+    ]
+    x = pad + 28
+    y = y3 + 90
+    for i, step in enumerate(steps):
+        col = i % 2
+        row = i // 2
+        sx = x + col * ((W - 2 * pad - 56) // 2)
+        sy = y + row * 70
+        rounded(d, (sx, sy, sx + (W - 2 * pad - 80) // 2, sy + 56), (245, 247, 244), LINE, 12)
+        d.text((sx + 18, sy + 14), step, font=fonts(26, True), fill=INK)
+
+    out = IMG / "hardware_architecture.png"
+    img.save(out, "PNG", optimize=True)
+    print(f"wrote {out.name} {img.size}")
+
+
+def make_vod_architecture() -> None:
+    """Crisp text diagram replacing the pixelated VoD collage."""
+    W, H = 2400, 1400
+    img = Image.new("RGB", (W, H), PAPER)
+    d = ImageDraw.Draw(img)
+    pad = 40
+    gap = 22
+    col_w = (W - 2 * pad - 2 * gap) // 3
+
+    d.text((pad, 28), "Radar–Camera Recording Pipeline for VoD Annotation", font=fonts(40, True), fill=INK)
+    d.text((pad, 84), "Hardware sources → synchronised view → annotation-ready export", font=fonts(26), fill=MUTED)
+
+    cols = [
+        (
+            ORANGE,
+            "Sensing Rig",
+            "Hardware sources",
+            [
+                ("TI AWR2243 mmWave Radar", [
+                    "Sensor: AWR2243 FMCW",
+                    "Output: radar rows",
+                    "Fields: X, Y, Z, I/P, velocity",
+                ]),
+                ("Intel RealSense D455", [
+                    "Sensor: RGB camera",
+                    "Output: RGB image",
+                    "Role: visual annotation",
+                ]),
+                ("FusionApp pairing", [
+                    "Builds one VoD sample",
+                    "Radar anchors each pair",
+                    "Closest RGB frame attached",
+                ]),
+            ],
+            "Example: 2 cyclists + 1 pedestrian · 2,417 radar points",
+        ),
+        (
+            TEAL,
+            "Synchronised Sensing View",
+            "Shared calibration space",
+            [
+                ("RGB frame", [
+                    "Forward camera view",
+                    "Object boxes P1 / P2 / P3",
+                    "Visual class evidence",
+                ]),
+                ("Radar BEV", [
+                    "Bird’s-eye point cloud",
+                    "Range rings 10–40 m",
+                    "Matching object footprints",
+                ]),
+                ("Calibration link", [
+                    "One Box3D in both views",
+                    "RGB boxes ↔ BEV footprints",
+                    "Common ego frame",
+                ]),
+            ],
+            "RGB boxes and BEV footprints share calibration",
+        ),
+        (
+            BLUE,
+            "Offline Preparation & Export",
+            "Annotation-ready products",
+            [
+                ("Pipeline steps", [
+                    "1. Read manifest + radar profile",
+                    "2. Use saved RGB–radar pairs",
+                    "3. Decode both velocity channels",
+                    "4. Package 1 / 3 / 5-scan VoD sets",
+                ]),
+                ("VoD row fields", [
+                    "X, Y, Z position",
+                    "Intensity / power",
+                    "Raw + residual velocity",
+                    "Time id for scan age",
+                ]),
+            ],
+            "Ready for the 3D annotation tool",
+        ),
+    ]
+
+    y0 = 140
+    for i, (color, title, subtitle, blocks, footer) in enumerate(cols):
+        x0 = pad + i * (col_w + gap)
+        x1 = x0 + col_w
+        rounded(d, (x0, y0, x1, H - pad), PAPER, color, 20, 3)
+        d.rounded_rectangle((x0, y0, x1, y0 + 96), radius=20, fill=color)
+        d.rectangle((x0, y0 + 48, x1, y0 + 96), fill=color)
+        d.text((x0 + 24, y0 + 18), title, font=fonts(30, True), fill=PAPER)
+        d.text((x0 + 24, y0 + 58), subtitle, font=fonts(24), fill=(230, 240, 238))
+
+        y = y0 + 120
+        for block_title, lines in blocks:
+            rounded(d, (x0 + 18, y, x1 - 18, y + 56 + 40 * len(lines)), (248, 249, 247), LINE, 14)
+            d.text((x0 + 36, y + 14), block_title, font=fonts(26, True), fill=color)
+            ly = y + 56
+            for line in lines:
+                d.text((x0 + 36, ly), "•  " + line, font=fonts(24), fill=MUTED)
+                ly += 38
+            y = ly + 18
+
+        rounded(d, (x0 + 18, H - pad - 78, x1 - 18, H - pad - 22), color, None, 12)
+        draw_wrapped(d, (x0 + 34, H - pad - 60), footer, fonts(22, True), PAPER, col_w - 70, 4)
+
+    out = IMG / "vod_architecture.png"
+    img.save(out, "PNG", optimize=True)
+    print(f"wrote {out.name} {img.size}")
+
+
 def main() -> None:
     IMG.mkdir(parents=True, exist_ok=True)
     make_stage2()
     make_stage3()
     make_stage4()
     make_pipeline_overview()
-    # Low native resolution — enlarge and sharpen
-    upscale_sharpen(IMG / "hardware_architecture.png", 2.6)
-    upscale_sharpen(IMG / "vod_architecture.png", 1.35)
-    # Screenshots: mild sharpen only
-    for name in ("annotation_interface.png", "dashboard_overview.png"):
+    make_hardware_architecture()
+    make_vod_architecture()
+    # Screenshots: mild sharpen only (cannot invent sharper UI text)
+    for name in ("annotation_interface.png", "dashboard_overview.png", "stage1_sensing_photo.png"):
         path = IMG / name
+        if not path.exists():
+            continue
         im = Image.open(path).convert("RGB")
-        im = im.filter(ImageFilter.UnsharpMask(radius=1.2, percent=120, threshold=2))
-        im = ImageEnhance.Contrast(im).enhance(1.05)
+        im = im.filter(ImageFilter.UnsharpMask(radius=1.1, percent=110, threshold=2))
+        im = ImageEnhance.Contrast(im).enhance(1.06)
         im.save(path, "PNG", optimize=True)
         print(f"sharpened {name}")
 
